@@ -1,0 +1,97 @@
+name: Build Custom Theme
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - 'main'
+      - 'master'
+    types: [opened, synchronize, reopened]
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate github token
+        id: generate-github-token
+        uses: tibdex/github-app-token@v1.8.0
+        with:
+          app_id: ${{ secrets.CLEVERTAP_CPE_BOT_ID }}
+          private_key: ${{ secrets.CLEVERTAP_CPE_BOT_PRIVATE_ACCESS_KEY }} 
+
+      - name: Checkout Keycloak Repository
+        uses: actions/checkout@v2
+
+      - name: Install node version 20
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+
+      - name: Install pnpm version 8.15.9
+        run: npm install -g pnpm@8.15.9
+
+      - name: Install java version 17 of openjdk
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+
+      - name: Install maven version 3.8.4
+        run: |
+          sudo apt-get install maven
+          mvn -version
+
+      - name: Get keycloak version
+        run: ./get-version.sh
+
+      - name: Set version of keycloak using set-version.sh
+        run: |
+          ./set-version.sh 26.0.6
+
+      - name: Build Keycloak using mvn
+        run: ./mvnw clean install -DskipTests
+
+      - name: Get current date
+        #if: github.ref == 'refs/heads/master'
+        id: get-date
+        run: echo "::set-output name=date::$(date +'%Y%m%d')"
+
+      - name: Create Asset
+        #if: github.ref == 'refs/heads/master'
+        run: zip account-fix-demo.zip js/apps/account-ui/target/keycloak-account-ui-26.0.6.jar login-themes/target/keycloak-login-themes-26.0.6.jar
+
+      - name: Create Draft Release
+        #if: github.ref == 'refs/heads/master'
+        id: create_release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+        with:
+          tag_name: v${{ steps.get-date.outputs.date }}.${{ github.run_number }}
+          release_name: v${{ steps.get-date.outputs.date }}.${{ github.run_number }}
+          draft: true
+          prerelease: false
+
+      - name: Upload assets to the release
+        #if: github.ref == 'refs/heads/master'
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: account-fix-demo.zip
+          asset_name: account-fix-demo.zip
+          asset_content_type: application/zip
+
+      - name: Delete older drafted releases
+        uses: sgpublic/delete-release-action@v1.1
+        #if: github.ref == 'refs/heads/master'
+        with:
+          draft-drop: true
+          draft-drop-count: 0
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+
+      - name: Link to publish release
+        #if: github.ref == 'refs/heads/master'
+        run: echo "You can publish release from here - ${{ steps.create_release.outputs.html_url }}"
