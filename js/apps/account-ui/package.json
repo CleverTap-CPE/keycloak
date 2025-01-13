@@ -80,7 +80,7 @@
         "vite.config.ts"
       ],
       "output": [
-        "target/classes/theme/keycloak.v3/account/resources"
+        "target/classes/theme/account-fix/account/resources"
       ]
     },
     "build-lib": {

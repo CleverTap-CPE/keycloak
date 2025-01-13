@@ -288,6 +288,7 @@
         <module>federation</module>
         <module>services</module>
         <module>themes</module>
+        <module>login-themes</module>
         <module>model</module>
         <module>util</module>
         <module>rest</module>
@@ -935,6 +936,11 @@
             <dependency>
                 <groupId>org.keycloak</groupId>
                 <artifactId>keycloak-themes</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.keycloak</groupId>
+                <artifactId>keycloak-login-themes</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
