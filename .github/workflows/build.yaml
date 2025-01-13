@@ -10,7 +10,6 @@ on:
   
 jobs:
   build:
-    name: Build Custom Theme
     runs-on: ubuntu-latest
     steps:
     - name: Generate github token
