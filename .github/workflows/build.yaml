@@ -13,6 +13,13 @@ jobs:
     name: Build Custom Theme
     runs-on: ubuntu-latest
     steps:
+    - name: Generate github token
+      id: generate-github-token
+      uses: tibdex/github-app-token@v1.8.0
+      with:
+        app_id: ${{ secrets.CLEVERTAP_CPE_BOT_ID }}
+        private_key: ${{ secrets.CLEVERTAP_CPE_BOT_PRIVATE_ACCESS_KEY }} 
+
     - name: Checkout Keycloak Repository
       uses: actions/checkout@v2
 
@@ -45,18 +52,63 @@ jobs:
     - name: Build Keycloak using mvn
       run: ./mvnw clean install -DskipTests
 
-    - name: Copy account ui theme to s3 bucket
-      run: |
-        aws s3 cp js/apps/account-ui/target/keycloak-account-ui-26.0.6.jar s3://production-global-management-eu-west-1-static-packages/rhkeycloak-packages/rhbk-26-upgrade/keycloak-account-ui-26.0.6.jar
+    - name: Get current date
+      #if: github.ref == 'refs/heads/master'
+      id: get-date
+      run: echo "::set-output name=date::$(date +'%Y%m%d')"
+
+    - name: Create Asset
+      #if: github.ref == 'refs/heads/master'
+      run: zip account-fix-demo.zip js/apps/account-ui/target/keycloak-account-ui-26.0.6.jar login-themes/target/keycloak-login-themes-26.0.6.jar
+
+     - name: Create Draft Release
+      #if: github.ref == 'refs/heads/master'
+      id: create_release
+      uses: actions/create-release@v1.1.4
       env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: "eu-west-1"
+        GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+      with:
+        tag_name: v${{ steps.get-date.outputs.date }}.${{ github.run_number }}
+        release_name: v${{ steps.get-date.outputs.date }}.${{ github.run_number }}
+        draft: true
+        prerelease: false
+
+    - name: Upload assets to the release
+      #if: github.ref == 'refs/heads/master'
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: account-fix-demo.zip
+        asset_name: account-fix-demo.zip
+        asset_content_type: application/zip
+
+    - name: Delete older drafted releases
+      uses: sgpublic/delete-release-action@v1.1
+      #if: github.ref == 'refs/heads/master'
+      with:
+        draft-drop: true
+        draft-drop-count: 0
+      env:
+        GITHUB_TOKEN: ${{ steps.generate-github-token.outputs.token }}
+
+    - name: Link to publish release
+      #if: github.ref == 'refs/heads/master'
+      run: echo "You can publish release from here - ${{ steps.create_release.outputs.html_url }}"
+
+    # - name: Copy account ui theme to s3 bucket
+    #   run: |
+    #     aws s3 cp js/apps/account-ui/target/keycloak-account-ui-26.0.6.jar s3://production-global-management-eu-west-1-static-packages/rhkeycloak-packages/rhbk-26-upgrade/keycloak-account-ui-26.0.6.jar
+    #   env:
+    #       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #       AWS_DEFAULT_REGION: "eu-west-1"
     
-    - name: Copy login theme to s3 bucket
-      run: |
-        aws s3 cp login-themes/target/keycloak-login-themes-26.0.6.jar s3://production-global-management-eu-west-1-static-packages/rhkeycloak-packages/rhbk-26-upgrade/keycloak-login-themes-26.0.6.jar
-      env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: "eu-west-1"
+    # - name: Copy login theme to s3 bucket
+    #   run: |
+    #     aws s3 cp login-themes/target/keycloak-login-themes-26.0.6.jar s3://production-global-management-eu-west-1-static-packages/rhkeycloak-packages/rhbk-26-upgrade/keycloak-login-themes-26.0.6.jar
+    #   env:
+    #       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #       AWS_DEFAULT_REGION: "eu-west-1"
