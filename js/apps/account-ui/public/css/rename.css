@@ -126,3 +126,13 @@
 #spinner_screen .brand {
     display: none;
 }
+
+.pf-v5-c-toolbar__item {
+    &.pf-m-overflow-menu {
+        &.pf-m-align-right {
+            &.pf-v5-u-m-0-on-lg {
+                display: none;
+            }
+        }
+    }
+}
